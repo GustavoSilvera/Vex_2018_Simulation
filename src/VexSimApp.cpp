@@ -94,8 +94,8 @@ public:
 	ci::gl::Texture dial;
 private:
 	// Change screen resolution
-	int mScreenWidth;
-	int mScreenHeight;
+	int mScreenWidth, mScreenHeight;
+	float initWidth, initHeight;
 	void getScreenResolution(int& width, int& height);
 };
 void VexSimApp::prepareSettings(Settings *settings)
@@ -107,7 +107,9 @@ void VexSimApp::prepareSettings(Settings *settings)
 	getScreenResolution(mScreenWidth, mScreenHeight);//getss resolution relative to monitor
 	settings->setWindowPos(mScreenWidth / 4, mScreenHeight / 6);
 	int aspectRatio = mScreenWidth / 8;//using half of monitor resolution
-	settings->setWindowSize(aspectRatio * 4, aspectRatio * 3);//maintains 4:3 aspect ratio
+	initWidth = aspectRatio * 4;
+	initHeight = aspectRatio * 3;
+	settings->setWindowSize(initWidth, initHeight);//maintains 4:3 aspect ratio
 }
 //initial setup for all the variables and stuff
 void VexSimApp::setup() {
@@ -125,8 +127,8 @@ void VexSimApp::setup() {
 	catch (const std::exception &e) {
 		app::console() << "Could not load and compile shader:" << e.what() << std::endl;
 	}
-	winScale = (float)getWindowWidth() / (float)WindowWidth;
-	mFont = Font("Arial", 35);//fixed custom font
+	winScale = (float)getWindowWidth() / (float)initWidth;
+	mFont = Font("Arial", 35*winScale);//fixed custom font
 	mTextureFont = gl::TextureFont::create(mFont);
 }
 void VexSimApp::getScreenResolution(int& width, int& height){
@@ -220,7 +222,7 @@ void VexSimApp::keyUp(KeyEvent event) {
 }
 //overall application update function
 void VexSimApp::update() {
-	winScale = ((float)getWindowWidth() + (float)getWindowHeight()) / (float)(WindowWidth + WindowHeight);
+	winScale = (float)(getWindowWidth() + getWindowHeight() ) / (float)(initWidth + initHeight);//change in window size relative to initial
 	float pastRot = v.r[0].p.mRot;
 	vec3 pastPos(v.r[0].p.position);
 	float pastTime = ci::app::getElapsedSeconds();

@@ -122,9 +122,36 @@ void VexSimApp::setup() {
 	mFont = Font("Arial", 35*winScale);//fixed custom font
 	mTextureFont = gl::TextureFont::create(mFont);
 
-	b.emplace_back([this]() {v.r.emplace_back(); v.f.initialize(&v.r); }, "+bot", vec3(200, 25), 100, vec3(255, 255, 255));
-	b.emplace_back([this]() {if(v.r.size() > 1) v.r.pop_back(); }, "-bot", vec3(310, 25), 100, vec3(255, 255, 255));
-
+	//+/- robots
+	b.emplace_back([this]() {v.r.emplace_back(); v.f.initialize(&v.r); }, "+bot", vec3(100, 25), 100, vec3(255, 255, 255));
+	b.emplace_back([this]() {if (v.r.size() > 1) v.r.pop_back(); }, "-bot", vec3(210, 25), 100, vec3(255, 255, 255));
+	//macro recording
+	b.emplace_back([this]() {//ON
+		v.recording = true;//toggles macro recording
+		scriptFile = std::ofstream("script.txt");
+	}, "rec", vec3(350, 25), 100, vec3(255, 255, 255));
+	b.emplace_back([this]() {//OFF
+		v.recording = false;//toggles macro recording
+		scriptFile << "driveFor( 0.015);\n";//used for final script(no repeats basically)
+		scriptFile = std::ofstream("script.txt", fstream::app);
+	}, "stop", vec3(460, 25), 100, vec3(255, 255, 255));
+	b.emplace_back([this]() {//READ
+		v.r[0].readScript();
+	}, "read", vec3(570, 25), 100, vec3(255, 255, 255));
+	//reset field
+	b.emplace_back([this]() {v.f.initialize(&v.r); }, "reset", vec3(720, 25), 100, vec3(255, 255, 255));
+	//start autobots
+	b.emplace_back([this]() {//turns on "thinking" for all autobots
+		for (int rob = 1; rob < v.r.size(); rob++) {
+			if (v.r[rob].thinking != true) v.r[rob].thinking = true;
+			else {
+				v.r[rob].thinking = false;
+				v.r[rob].stopAll();
+			}
+		}
+	}, "autos", vec3(850, 25), 100, vec3(255, 255, 255));
+	//debug mode
+	b.emplace_back([this]() {debuggingBotDraw = !debuggingBotDraw; }, "debug", vec3(1300, 250), 110, vec3(255, 255, 255));
 }
 //getting screen resolution
 void VexSimApp::getScreenResolution(int& width, int& height){
@@ -582,10 +609,10 @@ void VexSimApp::draw() {
 	}
 
 	//USER INTERFACE
-	gl::drawString("Score:", Vec2f(winScale * 850, winScale * 50), Color(1, 1, 1), Font("Arial", winScale * 40));
-	drawFontText(v.f.calculateScore(), vec3I(winScale * 1000, winScale * 60), vec3I(1, 1, 1), winScale * 50);
-	gl::drawString("Time(s):", Vec2f(winScale * 500, winScale * 50), Color(1, 1, 1), Font("Arial", winScale * 40));
-	drawFontText(ci::app::getElapsedSeconds(), vec3I(winScale * 630, winScale * 60), vec3I(1, 1, 1), winScale * 50);
+	gl::drawString("Score:", Vec2f(winScale * 900, winScale * 50), Color(1, 1, 1), Font("Arial", winScale * 70));
+	drawFontText(v.f.calculateScore(), vec3I(winScale * 1070, winScale * 75), vec3I(1, 1, 1), winScale * 70);
+	gl::drawString("Time(s):", Vec2f(winScale * 1300, winScale * 50), Color(1, 1, 1), Font("Arial", winScale * 40));
+	drawFontText(ci::app::getElapsedSeconds(), vec3I(winScale * 1430, winScale * 60), vec3I(1, 1, 1), winScale * 50);
 
 	gl::color(1, 1, 1);
 	drawDials(vec3I(1250, 500).times(winScale));

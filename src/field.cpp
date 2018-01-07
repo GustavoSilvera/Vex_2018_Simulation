@@ -64,7 +64,7 @@ void field::initialize(std::vector<robot> *r) {
 		(*r)[i].setPos(initPos);
 		(*r)[i].mg.grabbing = false;//brings mogoInator in
 		(*r)[i].c.liftPos = 0;//brings mogoInator in
-
+		(*r)[i].thinking = false;//no autbots yet
 	}
 	(*r)[0].setPos(initAuton);//initial for only first robot (rerunning one)
 

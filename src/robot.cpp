@@ -245,7 +245,62 @@ void robot::setPos(vec3 pos) {
 float robot::getSize() {
 	return size;
 }
-
+//FOR RERUN CODE
+void robot::checkReRunScript() {
+	if (readyToReRun) {
+		enum action {
+			ACTION_ROTATE,
+			ACTION_FWDS,
+			ACTION_MOGO
+		};
+		if (commands.size() > 0) {//make this more accriate
+			float maxSpeed = 127;
+			if (commands[0].amnt != 0 || commands[0].a == ACTION_MOGO) {//at least 
+				if (commands[0].a == ACTION_ROTATE) {//for rotate
+					if (abs(db.rotDist) <= abs(commands[0].amnt)) {
+						float power = limitTo(127, sqr(commands[0].amnt - db.rotDist));
+						rotate(getSign(commands[0].amnt) * power);
+						driveFwds(0);
+					}
+					else {
+						stopAll();
+						db.rotDist = RESET;
+						rotate(0);
+						commands.erase(commands.begin());//removes first element of vector
+					}
+				}
+				else if (commands[0].a == ACTION_FWDS) {//for fwds
+					if (abs(db.distance) <= abs(commands[0].amnt)) {
+						driveFwds(getSign(commands[0].amnt) * d.motorSpeed);
+						rotate(0);
+					}
+					else {
+						pathPoints.push_back(p.position);//create another line to this point
+						stopAll();
+						db.distance = RESET;
+						driveFwds(0);
+						commands.erase(commands.begin());//removes first element of vector
+					}
+				}
+				else if (commands[0].a == ACTION_MOGO) {//for fwds
+					mg.grabbing = !mg.grabbing;
+					commands.erase(commands.begin());//removes first element of vector
+				}
+			}
+			else {
+				commands.erase(commands.begin());
+			}
+		}
+		else {
+			db.distance = RESET;
+			db.rotDist = RESET;
+			driveFwds(0);
+			rotate(0);
+			stopAll();
+			readyToReRun = false;
+		}
+	}
+}
 //FOR AUTOBOTS
 void robot::decisions(field *f, int rob) {
 	if (c.holding != c.goal) {//dynamically refreshes which cone is best in position to be picked up

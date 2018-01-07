@@ -82,5 +82,9 @@ inline float largest(float v1, float v2) {
 	if (v1 > v2)return v1;
 	else return v2;
 }
+//returning hypotenuse between x and y values of a triangle
+inline float getHypo(vec3 val) {
+	return sqrt(sqr(val.X) + sqr(val.Y));
+}
 
 #endif  // RANDOMSTUFF_H

@@ -29,7 +29,6 @@ float winScale;//scale of window size for displaying properly
 Font mFont;//custom font for optimized drawing
 gl::TextureFontRef mTextureFont;//custom opengl::texture
 vec3 startPos;
-vec3 mousePos;
 class vex {
 public:
 	std::vector<robot> r;
@@ -40,11 +39,25 @@ public:
 	bool debugText = true;
 	bool recording = false;
 };
+class button {//always going to be 2:1 ratio of W:H
+public:
+	button(std::function<void()> a, string t, vec3 p, float s, vec3 col) :action(a), text(t), pos(p), size(s), colour(col) {}
+	std::function<void()> action;
+	void draw();
+	//booleans for border outline
+	bool hovered = false;
+	bool clicked = false;
+	//other details
+	vec3 colour;//RGB 
+	vec3 pos;//upper left values of rectangle
+	float size;
+	string text;
+};
 //begin
 int tX = 1200;
 class VexSimApp : public AppNative {
 public:
-	VexSimApp() :v(3) {}//how to modify in real time????
+	VexSimApp() :v(3) {}
 	void prepareSettings(Settings *settings);
 	void setup();
 	void mouseDown(MouseEvent event);
@@ -53,31 +66,9 @@ public:
 	void keyDown(KeyEvent event);
 	void keyUp(KeyEvent event);
 	void update();
-	struct button {
-		void buttonClick(int x, int y, int num_buttons, int size);
-		void buttonHover(int x, int y, int num_buttons, int size);
-		void buttonsDraw(int size);
-		int x, y, size;
-	};
 	void textDraw();
 	void drawDials(vec3I begin);
 	static void drawFontText(float text, vec3I pos, vec3I colour, int size);
-	//for customize panel
-	struct customizePanel {
-		void controlPanel(robot *r);
-		void callAction(bool increase, int buttonAction);
-		bool buttonHover(vec3 mouse, int x, int y, int x2, int y2, int index, int buttonAction);
-		void ctrlButton(vec3 mouse, int x, int y, int x2, int y2, float winScale, int buttonAction);
-		float size = 18;
-		float motorPower = MAXSPEED;//power for the base
-		int numberOfRobots = 1;
-		bool mouseClicked = false;
-		float buttonXPos[2];//only used for numRobots
-		float buttonX2Pos[2];//only used for numRobots
-		float buttonYPos[2];//only used for numRobots
-	};
-	customizePanel cp;
-	//for buttons and stuff
 	struct text {
 		string s;
 	};
@@ -92,21 +83,21 @@ public:
 	vex v;
 	bool debuggingBotDraw = false;
 	ci::gl::Texture dial;
+	std::vector<button> b;//all the on screen buttons
 private:
 	// Change screen resolution
 	int mScreenWidth, mScreenHeight;
 	float initWidth, initHeight;
 	void getScreenResolution(int& width, int& height);
 };
-void VexSimApp::prepareSettings(Settings *settings)
-{
+void VexSimApp::prepareSettings(Settings *settings){
 	//! setup our window
 	settings->setTitle("In The Zone Simulation");
 	settings->setFrameRate(60);//60fps
 	gl::enableVerticalSync();//vsync
 	getScreenResolution(mScreenWidth, mScreenHeight);//getss resolution relative to monitor
 	settings->setWindowPos(mScreenWidth / 4, mScreenHeight / 6);
-	int aspectRatio = mScreenWidth / 8;//using half of monitor resolution
+	int aspectRatio = mScreenWidth / 8;//using 4/7ths of monitor resolution
 	initWidth = aspectRatio * 4;
 	initHeight = aspectRatio * 3;
 	settings->setWindowSize(initWidth, initHeight);//maintains 4:3 aspect ratio
@@ -130,7 +121,12 @@ void VexSimApp::setup() {
 	winScale = (float)getWindowWidth() / (float)initWidth;
 	mFont = Font("Arial", 35*winScale);//fixed custom font
 	mTextureFont = gl::TextureFont::create(mFont);
+
+	b.emplace_back([this]() {v.r.emplace_back(); v.f.initialize(&v.r); }, "+bot", vec3(200, 25), 100, vec3(255, 255, 255));
+	b.emplace_back([this]() {if(v.r.size() > 1) v.r.pop_back(); }, "-bot", vec3(310, 25), 100, vec3(255, 255, 255));
+
 }
+//getting screen resolution
 void VexSimApp::getScreenResolution(int& width, int& height){
 	// Get a handle to the desktop window
 	const HWND hDesktop = GetDesktopWindow();
@@ -148,37 +144,37 @@ void VexSimApp::getScreenResolution(int& width, int& height){
 }
 //when mouse is clicked
 void VexSimApp::mouseDown(MouseEvent event) {
-	//if (event.isLeft()) s.mouseClicked = true;
-	//buttonClick(event.getX(), event.getY(), 6, 100);
-	/*if (s.SimRunning == s.CUSTOMIZE) {
-		cp.mouseClicked = true;
-		if (event.getY() > (cp.buttonYPos[0]) &&
-			event.getY() < (cp.buttonYPos[1])) {//within y bounds
-			if (event.getX() > (cp.buttonXPos[0]) &&//within the DECREASE bounds
-				event.getX() < (cp.buttonX2Pos[0])) {
-				if (!v.r.empty()) v.r.pop_back();
-			}
-			else if (event.getX() > (cp.buttonXPos[1]) &&//within the INCREASE bounds
-				event.getX() < (cp.buttonX2Pos[1])) {
-				robot rob;//creates new robit;
-				v.r.push_back(rob);
-				v.f.initialize(&v.r);
+	if (event.isLeft()) {
+		for (int i = 0; i < b.size(); i++) {//checking all buttons
+			bool withinXRange = (event.getX() > b[i].pos.X && event.getX() < b[i].pos.X + b[i].size);
+			bool withinYRange = (event.getY() > b[i].pos.Y && event.getY() < b[i].pos.Y + 0.5*b[i].size);//height is half of width 
+			if (withinXRange && withinYRange) {
+				b[i].clicked = true;
+				b[i].action();
+				break;
 			}
 		}
-	}*/
+	}
 }
 //when mouse is released
 void VexSimApp::mouseUp(MouseEvent event) {
-	///if (event.isLeft())	s.mouseClicked = false;
-	cp.mouseClicked = false;
+	for (int i = 0; i < b.size(); i++) {
+		b[i].clicked = false;
+	}
 }
 //when mouse is moved (used with joystick)
 void VexSimApp::mouseMove(MouseEvent event) {
-	//buttonHover(event.getX(), event.getY(), 6, 100);
-	//if (s.SimRunning == s.CUSTOMIZE) {
-	//	mousePos.X = event.getX();
-	//	mousePos.Y = event.getY();
-	//}
+	for (int i = 0; i < b.size(); i++) {//checking all buttons
+		bool withinXRange = (event.getX() > b[i].pos.X && event.getX() < b[i].pos.X + b[i].size);
+		bool withinYRange = (event.getY() > b[i].pos.Y && event.getY() < b[i].pos.Y + 0.5*b[i].size);//height is half of width 
+		if (withinXRange && withinYRange) {
+			b[i].hovered = true;//red outline
+			break;
+		}
+		else {
+			b[i].hovered = false;//regular outline
+		}
+	}
 }
 //what to do when keyboard key is pressed
 void VexSimApp::keyDown(KeyEvent event) {
@@ -234,61 +230,11 @@ void VexSimApp::update() {
 	v.f.isInit = true;
 	v.f.FieldUpdate(&v.r);
 	v.r[0].moveAround();
+	v.r[0].checkReRunScript();
+
 	v.r[0].db.distance += getSign(v.r[0].d.basePower)*v.r[0].p.position.distance(pastPos);
 	v.r[0].db.rotDist += (v.r[0].p.mRot - pastRot);
-	if (v.r[0].readyToReRun) {
-		enum action {
-			ACTION_ROTATE,
-			ACTION_FWDS,
-			ACTION_MOGO
-		};
-		if (v.r[0].commands.size() > 0) {//make this more accriate
-			float maxSpeed = 127;
-			if (v.r[0].commands[0].amnt != 0 || v.r[0].commands[0].a == ACTION_MOGO) {//at least 
-				if (v.r[0].commands[0].a == ACTION_ROTATE) {//for rotate
-					if (abs(v.r[0].db.rotDist) <= abs(v.r[0].commands[0].amnt)) {
-						float power = limitTo(127, sqr(v.r[0].commands[0].amnt - v.r[0].db.rotDist));
-						v.r[0].rotate(getSign(v.r[0].commands[0].amnt) * power);
-						v.r[0].driveFwds(0);
-					}
-					else {
-						v.r[0].stopAll();
-						v.r[0].db.rotDist = RESET;
-						v.r[0].rotate(0);
-						v.r[0].commands.erase(v.r[0].commands.begin());//removes first element of vector
-					}
-				}
-				else if (v.r[0].commands[0].a == ACTION_FWDS) {//for fwds
-					if (abs(v.r[0].db.distance) <= abs(v.r[0].commands[0].amnt)) {
-						v.r[0].driveFwds(getSign(v.r[0].commands[0].amnt) * v.r[0].d.motorSpeed);
-						v.r[0].rotate(0);
-					}
-					else {
-						v.r[0].pathPoints.push_back(v.r[0].p.position);//create another line to this point
-						v.r[0].stopAll();
-						v.r[0].db.distance = RESET;
-						v.r[0].driveFwds(0);
-						v.r[0].commands.erase(v.r[0].commands.begin());//removes first element of vector
-					}
-				}
-				else if (v.r[0].commands[0].a == ACTION_MOGO) {//for fwds
-					v.r[0].mg.grabbing = !v.r[0].mg.grabbing;
-					v.r[0].commands.erase(v.r[0].commands.begin());//removes first element of vector
-				}
-			}
-			else {
-				v.r[0].commands.erase(v.r[0].commands.begin());
-			}
-		}
-		else {
-			v.r[0].db.distance = RESET;
-			v.r[0].db.rotDist = RESET;
-			v.r[0].driveFwds(0);
-			v.r[0].rotate(0);
-			v.r[0].stopAll();
-			v.r[0].readyToReRun = false;
-		}
-	}
+	
 	if (v.recording) {//macro recording		//less accurate (straight line running)
 		if ((abs(v.r[0].p.velocity.X) > 0.1 && abs(v.r[0].p.velocity.Y == 0)>0.1) ||
 			(getSign(v.r[0].p.velocity.X) != signVX &&
@@ -316,57 +262,23 @@ void VexSimApp::update() {
 	}
 }
 
-//for on screen buttons, what to do when being pressed
-void VexSimApp::button::buttonClick(int x, int y, int numButtons, int size) {
-	/*
-	for (int i = 0; i < numButtons; i++) {//for each button in the array 
-		if (x > winScale * (size * (i + 1) - (size / 2) + (25 * (i + 1))) &&
-			x < winScale * (size * (i + 1) + (size / 2) + (25 * (i + 1))) &&
-			y > winScale * 25 && y < winScale * 75) {//within boundaries for each button based off their index
-			if (i <= 3) {//first four buttons
-				s.SimRunning = simulation::SimulationType(i);
-			}
-			else if (i == 4) {//fifth button
-				v.recording = true;//toggles macro recording
-				scriptFile = std::ofstream("script.txt");
-			}
-			else if (i == 5) {//sixth button
-				v.recording = false;//toggles macro recording
-				scriptFile << "driveFor( 0.015);\n";//used for final script(no repeats basically)
-				scriptFile = std::ofstream("script.txt", fstream::app);
-			}
-		}
-	}*/
+void button::draw() {
+	//initial main colour
+	gl::color(colour.X / 255.0f, colour.Y / 255.0f, colour.Z / 255.0f);//RGB values
+	//draws text
+	gl::drawString(text, Vec2f(winScale*(pos.X + size*0.25), winScale*(pos.Y + size*0.125)), Color(colour.X / 255.0f, colour.Y / 255.0f, colour.Z / 255.0f), mFont);
+	//border outline colours
+	if (clicked) {
+		gl::color(0, 1, 0);//green outline
+	}
+	else if (hovered) {
+		gl::color(1, 0, 0);//red outline
+	}
+	//draw rounded rectangle
+	gl::drawStrokedRoundedRect(Area(winScale*(pos.X), winScale*(pos.Y), winScale*(pos.X + size), winScale*(pos.Y + size / 2)), 7 * (size / 100));
+	gl::color(1, 1, 1);
 }
-//for on screen upper buttons, which get outlined red when being hovered over
-void VexSimApp::button::buttonHover(int x, int y, int numButtons, int size) {
-	/*for (int i = 0; i < numButtons; i++) {//for each button in the array 
-		if (x > winScale * (size * (i + 1) - (size / 2) + (25 * (i + 1))) &&
-			x < winScale * (size * (i + 1) + (size / 2) + (25 * (i + 1))) &&
-			y > winScale * 25 && y < winScale * 75) {//within boundaries for each button based off their index
-			s.hovering = i;
-		}
-	}*/
-}
-//drawing on screen buttons
-void VexSimApp::button::buttonsDraw(int buttonSize) {//function for drawing the buttons
-	int bY = 50, dInBtw = 25;//array for #buttons, bY is y position of each btn, dInBtw is distance in bwtween buttons
-	int i = 1;
-	text t[] = {//6 is numButtons
-		{ "InitRec:" },
-		{ "StopRec:" }
-	};
-	//use str.length() to get number of chars and dynamically push back other things
-	/*for (text& ti : t) {
-		if (i - 1 == s.SimRunning) { gl::color(0, 1, 0); }//if the button's index is equal to whichever button's index is being hovered over
-		else if (i - 1 == s.hovering) { gl::color(1, 0, 0); }//if the button's index is equal to whichever button's index is being hovered over
-		else { gl::color(1, 1, 1); }
-		gl::drawStrokedRoundedRect(Area(winScale *(i * buttonSize - buttonSize / 2 + dInBtw*i), winScale*(bY - 25), winScale*(i*buttonSize + buttonSize / 2 + dInBtw*i), winScale*(bY + 25)), 5);//ROUNDED rectangle with corner rad of 7
-		gl::color(1, 1, 1);//resets colour 
-		gl::drawString(t[i - 1].s, Vec2f(winScale*(i * buttonSize - t[i - 1].s.length() * 5 + dInBtw*i), winScale*(bY - 12.5)), Color(1, 1, 1), Font("Arial", winScale * 25));
-		i++;
-	}*/
-}
+
 //drawing the dials and their needles
 void drawDial(float amnt, vec3 pos, float max, float scale, ci::gl::Texture dial) {
 	int width = 2 * scale;//px fixed
@@ -414,10 +326,6 @@ void VexSimApp::textDraw() {//function for drawing the buttons
 	gl::color(1, 1, 1);
 
 }
-//returning hypotenuse between x and y values of a triangle
-float getHypo(vec3 val) {
-	return sqrt(sqr(val.X) + sqr(val.Y));
-}
 //drawing the dials used for measuring variables
 void VexSimApp::drawDials(vec3I begin) {
 	//drawwing DIALs
@@ -430,9 +338,9 @@ void VexSimApp::drawDials(vec3I begin) {
 		{ v.r[0].p.velocity, "Vel:", abs(v.r[0].p.maxVel) },//even
 		{ v.r[0].p.acceleration, "Acc:", 5 },//odd
 		{ v.r[0].p.rotVel, "rVel:", 3.5 }//even
-										 //{ v.r[1].p.velocity, "Vel:", abs(v.r[0].p.maxVel) },//even
-										 //{ v.r[1].p.acceleration, "Acc:", 5 },//odd
-										 //{ v.r[1].p.rotVel, "rVel:", 3.5 }//even
+		//{ v.r[1].p.velocity, "Vel:", abs(v.r[0].p.maxVel) },//even
+		//{ v.r[1].p.acceleration, "Acc:", 5 },//odd
+		//{ v.r[1].p.rotVel, "rVel:", 3.5 }//even
 
 	};
 	int i = 0;
@@ -458,79 +366,6 @@ void VexSimApp::drawFontText(float text, vec3I pos, vec3I colour, int size) {
 	gl::color(colour.X, colour.Y, colour.Z);
 	mTextureFont->drawString(PRINT, Vec2f(pos.X, pos.Y + 20 * winScale));
 	gl::color(1, 1, 1);
-}
-//like buttonpress for control panel buttons
-void VexSimApp::customizePanel::callAction(bool increase, int buttonAction) {
-	if (buttonAction == 0) {
-		if (increase) size += 0.1;
-		else size -= 0.1;
-	}
-	else if (buttonAction == 1) {
-		if (increase) motorPower++;
-		else motorPower--;
-	}
-}
-//for hovering over buttons in control panel
-bool VexSimApp::customizePanel::buttonHover(vec3 mouse, int x, int y, int x2, int y2, int index, int buttonAction) {
-	if (mouse.X > (x) &&
-		mouse.X < (x2) &&
-		mouse.Y >(y) &&
-		mouse.Y < (y2)) {//within boundaries for each button based off their index
-						 //mouse is hovering
-		if (mouseClicked) {///bad still (should be implemented in the mouse event)
-			if (index == 0)//left button
-				callAction(false, buttonAction);
-			else if (index == 1)//right button
-				callAction(true, buttonAction);
-		}
-		return true;
-	}
-	return false;
-}
-//for drawing and defining buttons in control panel
-void VexSimApp::customizePanel::ctrlButton(vec3 mouse, int x, int y, int x2, int y2, float winScale, int buttonAction) {
-	Color(1, 0, 0);
-	int sizeOf = (x2 - x);
-	x *= winScale; y *= winScale; x2 *= winScale; y2 *= winScale;//gets scaling out of the way
-	float dInBtwn = sizeOf*1.15;
-	buttonXPos[0] = x + 0 * dInBtwn;
-	buttonX2Pos[0] = x2 + 0 * dInBtwn;
-	buttonXPos[1] = x + 1 * dInBtwn;
-	buttonX2Pos[1] = x2 + 1 * dInBtwn;
-	buttonYPos[0] = y;
-	buttonYPos[1] = y2;
-
-	for (int i = 0; i < 2; i++) {
-		if (buttonHover(mouse, x + i*dInBtwn, y, x2 + i*dInBtwn, y2, i, buttonAction))
-			gl::color(1, 0, 0);//if the button's index is equal to whichever button's index is being hovered over
-		else  gl::color(1, 1, 1);
-		gl::drawStrokedRoundedRect(Area(x + i*dInBtwn, y, x2 + i*dInBtwn, y2), 5);//ROUNDED rectangle with corner rad of 7
-		if (i == 0) gl::drawString("<--", Vec2f(0.5*(x + x2) - 20 + i*dInBtwn, 0.5*(y + y2) - 10), Color(1, 1, 1), Font("Arial", winScale * 30));
-		else gl::drawString("-->", Vec2f(0.5*(x + x2) - 20 + i*dInBtwn, 0.5*(y + y2) - 10), Color(1, 1, 1), Font("Arial", winScale * 30));
-	}
-}
-//for defining control panel and what it does to the robots variables
-void VexSimApp::customizePanel::controlPanel(robot *r) {//function for drawing the buttons 
-	const int dInBtw = 50;//array for #buttons, bY is y position of each btn, dInBtw is distance in bwtween buttons
-	struct text {
-		string s;
-		double f;
-	};
-	text t[] = {
-		{ "Size:", size },
-		{ "Power:", motorPower },
-		{ "robots:", numberOfRobots }//number of robots ERROR WHEN INCREASING
-	};
-	int i = 0;
-	//use str.length() to get number of chars and dynamically push back other things
-	for (text& ti : t) {
-		int tY = (i + 1) * dInBtw;//increment x position for each button based off index
-		gl::drawString(ti.s, Vec2f(winScale*(tX - ti.s.length() * 17), winScale*(tY)), Color(1, 1, 1), Font("Arial", winScale * 40));
-		VexSimApp::drawFontText(ti.f, vec3I(winScale*(tX), winScale*(tY)), vec3I(1, 1, 1), winScale * 40);
-		int buttonStart = tX + ti.s.length() * 10;
-		ctrlButton(mousePos, buttonStart, tY, buttonStart + 60, tY + 30, winScale, i);
-		++i;
-	}
 }
 // Map 2D robot coordinates to screen coordinates.
 Vec2f VexSimApp::R2S2(vec3 robot_coord) {
@@ -662,11 +497,6 @@ void VexSimApp::draw() {
 	for (int rob = 0; rob < v.r.size(); rob++) {
 		drawRobot(&v.r[rob]);//drawing robot 1
 	}
-	gl::drawString("Score:", Vec2f(winScale * 850, winScale * 50), Color(1, 1, 1), Font("Arial", winScale * 50));
-	drawFontText(v.f.calculateScore(), vec3I(winScale * 1000, winScale * 50), vec3I(1, 1, 1), winScale * 50);
-	gl::drawString("Time(s):", Vec2f(winScale * 1350, winScale * 100), Color(1, 1, 1), Font("Arial", winScale * 40));
-	drawFontText(ci::app::getElapsedSeconds(), vec3I(winScale * 1480, winScale * 100), vec3I(1, 1, 1), winScale * 40);
-
 	for (int i = 0; i < v.f.mg.size(); i++) {
 		vec3 RGB;//true color value because cinder uses values from 0->1 for their colours
 		if (v.f.mg[i].colour == 1)/*red mogo*/			RGB = vec3(217, 38, 38);
@@ -739,14 +569,11 @@ void VexSimApp::draw() {
 	//	drawFontText(v.f.pl[0].height, vec3I(1010, 500), vec3I(1, 1, 1), 30);
 	//	drawFontText(v.r[0].db.rotDist, vec3I(1010, 400), vec3I(1, 1, 1), 30);
 
-	//USER INTERFACE
 	gl::color(1, 0, 0);
-	if (v.r[0].pathPoints.size() > 1) {
+	if (v.r[0].pathPoints.size() > 1) {//drawing trace lines after auton runs
 		float endInches = v.f.f.inFromEnd*ppi*winScale;
 		float offset = endInches + v.f.f.fieldSizeIn*ppi*winScale;//used bc screen coordinate offset thing
-
 		for (int i = 1; i < v.r[0].pathPoints.size(); i++) {
-
 			gl::drawLine(
 				cinder::Vec2f(endInches + v.r[0].pathPoints[i - 1].X*ppi*winScale, offset - v.r[0].pathPoints[i - 1].Y*ppi*winScale),
 				cinder::Vec2f(endInches + v.r[0].pathPoints[i].X*ppi*winScale, offset - v.r[0].pathPoints[i].Y*ppi*winScale)
@@ -754,8 +581,17 @@ void VexSimApp::draw() {
 		}
 	}
 
+	//USER INTERFACE
+	gl::drawString("Score:", Vec2f(winScale * 850, winScale * 50), Color(1, 1, 1), Font("Arial", winScale * 40));
+	drawFontText(v.f.calculateScore(), vec3I(winScale * 1000, winScale * 60), vec3I(1, 1, 1), winScale * 50);
+	gl::drawString("Time(s):", Vec2f(winScale * 500, winScale * 50), Color(1, 1, 1), Font("Arial", winScale * 40));
+	drawFontText(ci::app::getElapsedSeconds(), vec3I(winScale * 630, winScale * 60), vec3I(1, 1, 1), winScale * 50);
+
 	gl::color(1, 1, 1);
 	drawDials(vec3I(1250, 500).times(winScale));
+	for (int i = 0; i < b.size(); i++) {
+		b[i].draw();//draws all buttons
+	}
 	//buttons::buttonsDraw(100);//size in px
 	if (debuggingBotDraw) robotDebug();
 	gl::drawString("FPS: ", Vec2f(getWindowWidth() - 150, 30), Color(0, 1, 0), Font("Arial", 30));

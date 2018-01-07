@@ -45,7 +45,7 @@ public:
 	};
 	std::vector<command> commands;
 	std::vector<vec3> pathPoints;
-	struct debug {;
+	struct debug {
 		//lines
 		float slope;//only need 1 slope, both sides of a square are parallel
 		float Yint[2];
@@ -122,7 +122,10 @@ public:
 	bool reRouting = false;
 	int elementGoalIndex = 0;//which element to grab
 
+	void checkReRunScript();
+
 	//for autobots
+	void findGoal(element *e);
 	void goGrab(field *f, element *e, int coneIndex, int roboIndex);
 	void stackOn(field *f, element *e);
 	void placeIn(field *f, fence::zone *z);//weird rn

@@ -59,6 +59,7 @@ class VexSimApp : public AppNative {
 public:
 	VexSimApp() :v(3) {}
 	void prepareSettings(Settings *settings);
+	void setupButtons();
 	void setup();
 	void mouseDown(MouseEvent event);
 	void mouseUp(MouseEvent event);
@@ -121,7 +122,26 @@ void VexSimApp::setup() {
 	winScale = (float)getWindowWidth() / (float)initWidth;
 	mFont = Font("Arial", 35*winScale);//fixed custom font
 	mTextureFont = gl::TextureFont::create(mFont);
+	setupButtons();
+}
+//getting screen resolution
+void VexSimApp::getScreenResolution(int& width, int& height){
+	// Get a handle to the desktop window
+	const HWND hDesktop = GetDesktopWindow();
 
+	// Get the size of the screen into a rectangle
+	RECT rDesktop;
+	GetWindowRect(hDesktop, &rDesktop);
+
+	// The top left corner will have coordinates (0, 0)
+	// and the bottom right corner will have coordinates
+	// (width, height)
+	width = rDesktop.right;
+	height = rDesktop.bottom;
+
+}
+//setup for on screen buttons
+void VexSimApp::setupButtons() {
 	//+/- robots
 	b.emplace_back([this]() {v.r.emplace_back(); v.f.initialize(&v.r); }, "+bot", vec3(100, 25), 100, vec3(255, 255, 255));
 	b.emplace_back([this]() {if (v.r.size() > 1) v.r.pop_back(); }, "-bot", vec3(210, 25), 100, vec3(255, 255, 255));
@@ -153,28 +173,12 @@ void VexSimApp::setup() {
 	//debug mode
 	b.emplace_back([this]() {debuggingBotDraw = !debuggingBotDraw; }, "debug", vec3(1300, 250), 110, vec3(255, 255, 255));
 }
-//getting screen resolution
-void VexSimApp::getScreenResolution(int& width, int& height){
-	// Get a handle to the desktop window
-	const HWND hDesktop = GetDesktopWindow();
-
-	// Get the size of the screen into a rectangle
-	RECT rDesktop;
-	GetWindowRect(hDesktop, &rDesktop);
-
-	// The top left corner will have coordinates (0, 0)
-	// and the bottom right corner will have coordinates
-	// (width, height)
-	width = rDesktop.right;
-	height = rDesktop.bottom;
-
-}
 //when mouse is clicked
 void VexSimApp::mouseDown(MouseEvent event) {
 	if (event.isLeft()) {
 		for (int i = 0; i < b.size(); i++) {//checking all buttons
-			bool withinXRange = (event.getX() > b[i].pos.X && event.getX() < b[i].pos.X + b[i].size);
-			bool withinYRange = (event.getY() > b[i].pos.Y && event.getY() < b[i].pos.Y + 0.5*b[i].size);//height is half of width 
+			bool withinXRange = (event.getX() > b[i].pos.X*winScale && event.getX() < b[i].pos.X*winScale + b[i].size*winScale);
+			bool withinYRange = (event.getY() > b[i].pos.Y*winScale && event.getY() < b[i].pos.Y*winScale + 0.5*b[i].size*winScale);//height is half of width 
 			if (withinXRange && withinYRange) {
 				b[i].clicked = true;
 				b[i].action();
@@ -192,8 +196,8 @@ void VexSimApp::mouseUp(MouseEvent event) {
 //when mouse is moved (used with joystick)
 void VexSimApp::mouseMove(MouseEvent event) {
 	for (int i = 0; i < b.size(); i++) {//checking all buttons
-		bool withinXRange = (event.getX() > b[i].pos.X && event.getX() < b[i].pos.X + b[i].size);
-		bool withinYRange = (event.getY() > b[i].pos.Y && event.getY() < b[i].pos.Y + 0.5*b[i].size);//height is half of width 
+		bool withinXRange = (event.getX() > b[i].pos.X*winScale && event.getX() < b[i].pos.X*winScale + b[i].size*winScale);
+		bool withinYRange = (event.getY() > b[i].pos.Y*winScale && event.getY() < b[i].pos.Y*winScale + 0.5*b[i].size*winScale);//height is half of width 
 		if (withinXRange && withinYRange) {
 			b[i].hovered = true;//red outline
 			break;
@@ -245,7 +249,7 @@ void VexSimApp::keyUp(KeyEvent event) {
 }
 //overall application update function
 void VexSimApp::update() {
-	winScale = (float)(getWindowWidth() + getWindowHeight() ) / (float)(initWidth + initHeight);//change in window size relative to initial
+	winScale = (float)(getWindowWidth() + getWindowHeight() ) / (float)(1*(initWidth + initHeight));//change in window size relative to initial
 	float pastRot = v.r[0].p.mRot;
 	vec3 pastPos(v.r[0].p.position);
 	float pastTime = ci::app::getElapsedSeconds();
@@ -609,8 +613,8 @@ void VexSimApp::draw() {
 	}
 
 	//USER INTERFACE
-	gl::drawString("Score:", Vec2f(winScale * 900, winScale * 50), Color(1, 1, 1), Font("Arial", winScale * 70));
-	drawFontText(v.f.calculateScore(), vec3I(winScale * 1070, winScale * 75), vec3I(1, 1, 1), winScale * 70);
+	gl::drawString("Score:", Vec2f(winScale * 935, winScale * 50), Color(1, 1, 1), Font("Arial", winScale * 60));
+	drawFontText(v.f.calculateScore(), vec3I(winScale * 1100, winScale * 70), vec3I(1, 1, 1), winScale * 70);
 	gl::drawString("Time(s):", Vec2f(winScale * 1300, winScale * 50), Color(1, 1, 1), Font("Arial", winScale * 40));
 	drawFontText(ci::app::getElapsedSeconds(), vec3I(winScale * 1430, winScale * 60), vec3I(1, 1, 1), winScale * 50);
 

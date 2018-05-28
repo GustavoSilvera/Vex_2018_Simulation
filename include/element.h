@@ -25,8 +25,10 @@ struct fence {
 		std::set<mobileGoalIndex> twentyPoint;
 	};
 	zone z[2]; // red and blue
+	void clearZones();
 	float poleEquation(float xPoint, float yPoint, float slope, float value);//red and bleu
 	void robotPole(robot *r);//collision between robot and zone poles
+	bool isSkills = false;
 };
 struct element {
 	element(vec3 initpos, float initradius, float initheight) : pos(initpos), radius(initradius), height(initheight) {}

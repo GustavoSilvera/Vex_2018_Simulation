@@ -15,8 +15,6 @@
 //my own headers
 #include "field.h"
 #include "robot.h"
-#include "vec3.h"
-#include "randomstuff.h"
 
 //declaration for the main things, simulation and whatnot
 using namespace ci;
@@ -78,11 +76,14 @@ public:
 	Vec3f R2S3(float robot_coordX, float robot_coordY, float robot_coordZ);
 	Rectf R2S4(float p1X, float p1Y, float p2X, float p2Y);
 	void robotDebug();
+	void skillsRun();
 	void drawClaw(robot *r);
 	void drawRobot(robot *r);
 	void draw();
 	vex v;
 	bool debuggingBotDraw = false;
+	bool isSkillsRun = false;
+	float skillsTime = 0;
 	ci::gl::Texture dial;
 	std::vector<button> b;//all the on screen buttons
 private:
@@ -98,7 +99,7 @@ void VexSimApp::prepareSettings(Settings *settings){
 	gl::enableVerticalSync();//vsync
 	getScreenResolution(mScreenWidth, mScreenHeight);//getss resolution relative to monitor
 	settings->setWindowPos(mScreenWidth / 4, mScreenHeight / 6);
-	int aspectRatio = mScreenWidth / 8;//using 4/7ths of monitor resolution
+	int aspectRatio = mScreenWidth / 7;//using 4/7ths of monitor resolution
 	initWidth = aspectRatio * 4;
 	initHeight = aspectRatio * 3;
 	settings->setWindowSize(initWidth, initHeight);//maintains 4:3 aspect ratio
@@ -172,6 +173,9 @@ void VexSimApp::setupButtons() {
 	}, "autos", vec3(850, 25), 100, vec3(255, 255, 255));
 	//debug mode
 	b.emplace_back([this]() {debuggingBotDraw = !debuggingBotDraw; }, "debug", vec3(1300, 250), 110, vec3(255, 255, 255));
+	//skills mode
+	b.emplace_back([this]() {isSkillsRun = !isSkillsRun; }, "skills", vec3(1300, 350), 110, vec3(255, 255, 255));
+
 }
 //when mouse is clicked
 void VexSimApp::mouseDown(MouseEvent event) {
@@ -224,6 +228,7 @@ void VexSimApp::keyDown(KeyEvent event) {
 	if (event.getChar() == 'm' || event.getChar() == 'M') v.debugText = !v.debugText;
 	if (event.getChar() == 'n' || event.getChar() == 'N') v.f.initialize(&v.r);//reset field
 	if (event.getChar() == 'b' || event.getChar() == 'B') debuggingBotDraw = !debuggingBotDraw;//draw cool lines
+	if (event.getChar() == ';' || event.getChar() == ':') isSkillsRun = !isSkillsRun;//draw cool lines
 																							   //other
 	if (event.getChar() == 'c') v.r[0].readScript();
 	if (event.getChar() == 'q') {
@@ -478,6 +483,15 @@ void VexSimApp::robotDebug() {
 	gl::color(1, 1, 1);//resets colours to regular
 					   // Draw lines used for debugging robot vertices. edges, and physical features.
 }
+//Reset everything for skills run
+void VexSimApp::skillsRun() {
+	v.f.initialize(&v.r);//resets field
+	skillsTime = ci::app::getElapsedSeconds();//reset timer to 0
+	isSkillsRun = false;
+	v.f.f.isSkills = true;
+	v.f.f.clearZones();
+	return;
+}
 //drawing front robot cone claw
 void VexSimApp::drawClaw(robot *r) {
 	gl::draw(v.r[0].CChanel, Area((r->c.size)*ppi*winScale, (r->size*.5 + r->c.baseSize)*ppi*winScale, (-r->c.size)*ppi*winScale, (r->size*.5)*ppi*winScale));
@@ -511,6 +525,10 @@ void VexSimApp::drawRobot(robot *r) {
 	glPopMatrix();//end of rotation code
 }
 //overall application drawing function
+void watermark() {
+	float tsize = getWindowWidth() / 10;
+	gl::drawString("Copyright 5327C - GS ", Vec2f(getWindowWidth() / 8, getWindowHeight() / 2), Color(1, 0, 0), Font("Arial", tsize));
+}
 void VexSimApp::draw() {
 	gl::enableAlphaBlending();//good for transparent images
 	gl::clear(Color(0, 0, 0));
@@ -616,15 +634,20 @@ void VexSimApp::draw() {
 	gl::drawString("Score:", Vec2f(winScale * 935, winScale * 50), Color(1, 1, 1), Font("Arial", winScale * 60));
 	drawFontText(v.f.calculateScore(), vec3I(winScale * 1100, winScale * 70), vec3I(1, 1, 1), winScale * 70);
 	gl::drawString("Time(s):", Vec2f(winScale * 1300, winScale * 50), Color(1, 1, 1), Font("Arial", winScale * 40));
-	drawFontText(ci::app::getElapsedSeconds(), vec3I(winScale * 1430, winScale * 60), vec3I(1, 1, 1), winScale * 50);
-
+	drawFontText(ci::app::getElapsedSeconds() - skillsTime, vec3I(winScale * 1430, winScale * 60), vec3I(1, 1, 1), winScale * 50);
+	if (skillsTime != 0) {
+		gl::drawString("TTime(s):", Vec2f(winScale * 1300, winScale * 150), Color(1, 1, 1), Font("Arial", winScale * 40));
+		drawFontText(ci::app::getElapsedSeconds(), vec3I(winScale * 1450, winScale * 160), vec3I(1, 1, 1), winScale * 50);
+	}
 	gl::color(1, 1, 1);
 	drawDials(vec3I(1250, 500).times(winScale));
 	for (int i = 0; i < b.size(); i++) {
 		b[i].draw();//draws all buttons
 	}
 	//buttons::buttonsDraw(100);//size in px
+	//watermark();
 	if (debuggingBotDraw) robotDebug();
+	if (isSkillsRun) skillsRun();
 	gl::drawString("FPS: ", Vec2f(getWindowWidth() - 150, 30), Color(0, 1, 0), Font("Arial", 30));
 	drawFontText(getAverageFps(), vec3I(getWindowWidth() - 90, 30), vec3I(0, 1, 0), 30);
 	if (v.debugText) textDraw();//dont run on truspeed sim, unnecessary

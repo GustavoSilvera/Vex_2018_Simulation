@@ -27,7 +27,7 @@ cone initConeConfig[] = {//array for each configuration of the cone (in field.h)
 	{ V2R({ 117.5, 105.8 })},{ V2R({ 117.5, 117.5 })},{ V2R({ 117.5, 127.6 })},{ V2R({ 117.5, 137.8 })},
 	{ V2R({ 127.6, 117.5 })},{ V2R({ 127.6, 127.6 })},{ V2R({ 127.6, 137.8 })},{ V2R({ 137.8, 82.1 })},
 	{ V2R({ 137.8, 93.9 })},{ V2R({ 137.8, 105.8 })},{ V2R({ 137.8, 117.5 })},{ V2R({ 137.8, 127.6 })},
-	{ V2R({ 137.8, 137.8 })}
+	{ V2R({ 137.8, 137.8 }), },{ V2R({ 0, 0 }) }
 };
 int numCones = sizeof(initConeConfig) / sizeof(cone);
 //initializing mogos and stuff
@@ -92,6 +92,13 @@ int field::calculateScore() {
 		score += f.z[i].twentyPoint.size() * 20;
 	}
 	return score;
+}
+void fence::clearZones() {
+	for (int i = 0; i < 2; i++) {
+		z[i].fivePoint.clear();
+		z[i].tenPoint.clear();
+		z[i].twentyPoint.clear();
+	}
 }
 //returns the distance from a point to the robots edge, given the two lengths of vertice distance
 float calcD2Edge(float a, float b, robot *r, float prop) {/*not taking into account the protrusion of mogo*/
@@ -369,15 +376,14 @@ void cone::coneGrab(robot *r, int index, int robIndex) {
 }
 //checking if mogo is being grabbed by the robot
 void MoGo::mogoGrab(robot *r, int index) {
-	vec3 idealSpot = vec3(//perf
-		(r->p.position.X - (r->getSize() / 2) * cos((-r->p.mRot) * PI / 180) * sqrt(2)),
-		(r->p.position.Y + (r->getSize() / 2) * sin((-r->p.mRot) * PI / 180) * sqrt(2)));
-	bool inPosition = (pos.distance(idealSpot) <= radius*0.7);//within range of behindness
+	vec3 idealSpot = vec3(
+		r->p.position.X + r->mg.protrusion * cos((r->p.mRot) * PI / 180) * 2,
+		r->p.position.Y + r->mg.protrusion * sin((r->p.mRot) * PI / 180) * 2);
+	bool inPosition = (pos.distance(idealSpot) <= radius*2);//within range of behindness
 	if (r->mg.grabbing  && ((r->mg.holding == index + 100) || (r->mg.holding == -101))) {
 		if (inPosition) {//makes sure lift is within grabbing distance
 			r->mg.holding = index+100;
-			pos.X = (r->p.position.X - (r->getSize() / 2) * cos((-r->p.mRot) * PI / 180) * sqrt(2));//works
-			pos.Y = (r->p.position.Y + (r->getSize() / 2) * sin((-r->p.mRot) * PI / 180) * sqrt(2));//works
+			pos = idealSpot;
 		}
 	}
 }
@@ -446,7 +452,7 @@ void field::positionFall(cone *fall) {
 }
 //checking which mogos are within which zone
 void MoGo::zoneScore(fence *f, int index) {
-	//if (colour == 1) {//red
+	if (colour == 1 || f->isSkills) {//red
 		if (pos.Y <= f->poleEquation(0, 23.2, -1, pos.X)) {//20 point
 			f->z[0].twentyPoint.insert(index);
 			f->z[0].fivePoint.erase(index);
@@ -467,8 +473,8 @@ void MoGo::zoneScore(fence *f, int index) {
 			f->z[0].fivePoint.erase(index);
 			f->z[0].tenPoint.erase(index);
 		}
-	//}
-	//else if (colour == 2) {//blue 
+	}
+	else if (colour == 2 || f->isSkills) {//blue 
 		if (pos.Y >= f->poleEquation(140.05, 117.5, -1, pos.X)) {
 			f->z[1].twentyPoint.insert(index);
 			f->z[1].fivePoint.erase(index);
@@ -489,7 +495,7 @@ void MoGo::zoneScore(fence *f, int index) {
 			f->z[1].fivePoint.erase(index);
 			f->z[1].tenPoint.erase(index);
 		}
-	//}
+	}
 }
 //update task for the entire field simulation
 void field::FieldUpdate(std::vector<robot> *r) {

@@ -24,6 +24,7 @@ std::ofstream scriptFile;
 
 extern int numCones;
 float winScale;//scale of window size for displaying properly
+double winConst;
 Font mFont;//custom font for optimized drawing
 gl::TextureFontRef mTextureFont;//custom opengl::texture
 vec3 startPos;
@@ -98,15 +99,17 @@ void VexSimApp::prepareSettings(Settings *settings){
 	settings->setFrameRate(60);//60fps
 	gl::enableVerticalSync();//vsync
 	getScreenResolution(mScreenWidth, mScreenHeight);//getss resolution relative to monitor
-	settings->setWindowPos(mScreenWidth / 4, mScreenHeight / 6);
+	settings->setWindowPos(mScreenWidth / 6, mScreenHeight / 6);
 	int aspectRatio = mScreenWidth / 7;//using 4/7ths of monitor resolution
 	initWidth = aspectRatio * 4;
 	initHeight = aspectRatio * 3;
+	winConst = 0.000260417*(mScreenWidth) + 0.2;
 	settings->setWindowSize(initWidth, initHeight);//maintains 4:3 aspect ratio
 }
 //initial setup for all the variables and stuff
 void VexSimApp::setup() {
 	srand(time(NULL));//seeds random number generator
+	
 	try {
 		robot::TankBase = gl::Texture(loadImage(loadAsset("Tank Drive.png")));
 		robot::TankBase2 = gl::Texture(loadImage(loadAsset("Tank Drive WheelSpin.png")));
@@ -120,7 +123,7 @@ void VexSimApp::setup() {
 	catch (const std::exception &e) {
 		app::console() << "Could not load and compile shader:" << e.what() << std::endl;
 	}
-	winScale = (float)getWindowWidth() / (float)initWidth;
+	winScale = winConst*((float)getWindowWidth() / (float)initWidth);
 	mFont = Font("Arial", 35*winScale);//fixed custom font
 	mTextureFont = gl::TextureFont::create(mFont);
 	setupButtons();
@@ -254,7 +257,7 @@ void VexSimApp::keyUp(KeyEvent event) {
 }
 //overall application update function
 void VexSimApp::update() {
-	winScale = (float)(getWindowWidth() + getWindowHeight() ) / (float)(1*(initWidth + initHeight));//change in window size relative to initial
+	winScale = winConst*((float)(getWindowWidth() + getWindowHeight() ) / (float)(1*(initWidth + initHeight)));//change in window size relative to initial
 	float pastRot = v.r[0].p.mRot;
 	vec3 pastPos(v.r[0].p.position);
 	float pastTime = ci::app::getElapsedSeconds();
@@ -490,6 +493,7 @@ void VexSimApp::skillsRun() {
 	isSkillsRun = false;
 	v.f.f.isSkills = true;
 	v.f.f.clearZones();
+	while(v.r.size() > 1) v.r.pop_back();//deletes all the robits
 	return;
 }
 //drawing front robot cone claw
@@ -633,8 +637,8 @@ void VexSimApp::draw() {
 	//USER INTERFACE
 	gl::drawString("Score:", Vec2f(winScale * 935, winScale * 50), Color(1, 1, 1), Font("Arial", winScale * 60));
 	drawFontText(v.f.calculateScore(), vec3I(winScale * 1100, winScale * 70), vec3I(1, 1, 1), winScale * 70);
-	gl::drawString("Time(s):", Vec2f(winScale * 1300, winScale * 50), Color(1, 1, 1), Font("Arial", winScale * 40));
-	drawFontText(ci::app::getElapsedSeconds() - skillsTime, vec3I(winScale * 1430, winScale * 60), vec3I(1, 1, 1), winScale * 50);
+	gl::drawString("Time(s):", Vec2f(winScale * 1300, winScale * 70), Color(1, 1, 1), Font("Arial", winScale * 40));
+	drawFontText(ci::app::getElapsedSeconds() - skillsTime, vec3I(winScale * 1430, winScale * 80), vec3I(1, 1, 1), winScale * 50);
 	if (skillsTime != 0) {
 		gl::drawString("TTime(s):", Vec2f(winScale * 1300, winScale * 150), Color(1, 1, 1), Font("Arial", winScale * 40));
 		drawFontText(ci::app::getElapsedSeconds(), vec3I(winScale * 1450, winScale * 160), vec3I(1, 1, 1), winScale * 50);
@@ -648,8 +652,8 @@ void VexSimApp::draw() {
 	//watermark();
 	if (debuggingBotDraw) robotDebug();
 	if (isSkillsRun) skillsRun();
-	gl::drawString("FPS: ", Vec2f(getWindowWidth() - 150, 30), Color(0, 1, 0), Font("Arial", 30));
-	drawFontText(getAverageFps(), vec3I(getWindowWidth() - 90, 30), vec3I(0, 1, 0), 30);
+	gl::drawString("FPS: ", Vec2f(getWindowWidth() - 150, 10), Color(0, 1, 0), Font("Arial", 30));
+	drawFontText(getAverageFps(), vec3I(getWindowWidth() - 90, 10), vec3I(0, 1, 0), 30);
 	if (v.debugText) textDraw();//dont run on truspeed sim, unnecessary
 }
 //awesomesause

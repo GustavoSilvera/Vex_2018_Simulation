@@ -25,7 +25,7 @@ cone initConeConfig[] = {//array for each configuration of the cone (in field.h)
 	{ V2R({ 82.1, 139.2 })},{ V2R({ 93.9, 82.1 })},{ V2R({ 93.9, 93.9 })},{ V2R({ 93.9, 117.5 })},
 	{ V2R({ 93.9, 137.8 })},{ V2R({ 105.8, 117.5 })},{ V2R({ 105.8, 137.8 })},{ V2R({ 117.5, 93.9 })},
 	{ V2R({ 117.5, 105.8 })},{ V2R({ 117.5, 117.5 })},{ V2R({ 117.5, 127.6 })},{ V2R({ 117.5, 137.8 })},
-	{ V2R({ 127.6, 117.5 })},{ V2R({ 127.6, 127.6 })},{ V2R({ 127.6, 137.8 })},{ V2R({ 137.8, 82.1 })},
+	{ V2R({ 127.6, 117.5 })},{ V2R({ 127.6, 127.6 })},{ V2R({ 127.6, 137.8 })},{ V2R({ 139.2, 82.1 })},
 	{ V2R({ 137.8, 93.9 })},{ V2R({ 137.8, 105.8 })},{ V2R({ 137.8, 117.5 })},{ V2R({ 137.8, 127.6 })},
 	{ V2R({ 137.8, 137.8 }), },{ V2R({ 0, 0 }) }
 };
@@ -474,7 +474,7 @@ void MoGo::zoneScore(fence *f, int index) {
 			f->z[0].tenPoint.erase(index);
 		}
 	}
-	else if (colour == 2 || f->isSkills) {//blue 
+	if (colour == 2 || f->isSkills) {//blue 
 		if (pos.Y >= f->poleEquation(140.05, 117.5, -1, pos.X)) {
 			f->z[1].twentyPoint.insert(index);
 			f->z[1].fivePoint.erase(index);
